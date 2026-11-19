@@ -428,9 +428,8 @@ function onKeyMoveTabsToPanel(targetIndex: number): void {
   Tabs.sortTabIds(targetTabIds)
   const probeTab = Tabs.byId[targetTabIds[0]]
   if (probeTab && probeTab.panelId !== panel.id) {
-    const items = Tabs.getTabsInfo(targetTabIds)
     const src = { windowId: Windows.id, panelId: probeTab.panelId, pinned: probeTab.pinned }
-    Tabs.move(items, src, { panelId: panel.id, index: panel.nextTabIndex })
+    Tabs.moveTabsToPanel(targetTabIds, src, { panelId: panel.id, index: panel.nextTabIndex })
   }
 }
 

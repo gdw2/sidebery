@@ -383,9 +383,8 @@ function onSave(): void {
       Tabs.reopenInContainer([tab.id], rContainer.id)
     }
     if (Utils.isTabsPanel(mPanel) && moveTab) {
-      const items = Tabs.getTabsInfo([tab.id])
       const src = { windowId: Windows.id, panelId: tab.panelId, pinned: tab.pinned }
-      Tabs.move(items, src, { panelId: mPanel.id, index: mPanel.nextTabIndex })
+      Tabs.moveTabsToPanel([tab.id], src, { panelId: mPanel.id, index: mPanel.nextTabIndex })
 
       if (tab.active && Settings.state.tabsPanelSwitchActMoveAuto) {
         Sidebar.switchToPanel(mPanel.id, true, true)

@@ -822,20 +822,20 @@ export function moveByRule(tabId: ID, delay: number) {
       if (rule.panelId === tab.panelId) return
 
       const panelId = rule.panelId
-      moveTabToPanel(tab, panelId)
+      moveTabByRuleToPanel(tab, panelId)
     } else if (
       excludeTo !== NOID &&
       excludeTo !== tab.panelId &&
       !tab.url.startsWith('a') &&
       !tab.url.startsWith('m')
     ) {
-      moveTabToPanel(tab, excludeTo)
+      moveTabByRuleToPanel(tab, excludeTo)
     }
   }, delay)
   moveByRuleTimeouts.set(tabId, timeout)
 }
 
-function moveTabToPanel(tab: T.Tab, panelId: ID) {
+function moveTabByRuleToPanel(tab: T.Tab, panelId: ID) {
   const panel = Sidebar.panelsById[panelId]
   if (!Utils.isTabsPanel(panel)) return
   // TODO: why I use moveNewTabParent here? add config specifically for this case (move by rule)
@@ -843,12 +843,57 @@ function moveTabToPanel(tab: T.Tab, panelId: ID) {
   const index = moveToPanelStart ? panel.startTabIndex : panel.nextTabIndex
   const src: T.SrcPlaceInfo = { windowId: Windows.id, pinned: tab.pinned }
   const dst: T.DstPlaceInfo = { panelId, index }
-  Utils.GLOBAL_QUEUE.add(Tabs.move, [tab], src, dst)
+  moveTabsToPanel([tab.id], src, dst)
 
   if (tab.active && Settings.state.tabsPanelSwitchActMoveAuto) {
     Sidebar.switchToPanel(panelId, true, true)
   }
 }
+
+function getDropContainerId(panel: Pick<T.TabsPanel, 'dropTabCtx'>): string | undefined {
+  const ctx = panel.dropTabCtx
+  if (ctx === DEFAULT_CONTAINER_ID) return ctx
+  if (Containers.reactive.byId[ctx]) return ctx
+}
+
+type TabContainerInfo = Pick<T.Tab, 'pinned' | 'panelId' | 'cookieStoreId'>
+
+export function needsReopenInContainer(
+  tabs: TabContainerInfo[],
+  panelId: ID | undefined,
+  containerId: string | undefined
+): boolean {
+  return (
+    containerId !== undefined &&
+    tabs.length > 0 &&
+    tabs.every(tab => !tab.pinned && tab.panelId !== panelId) &&
+    tabs.some(tab => tab.cookieStoreId !== containerId)
+  )
+}
+
+/**
+ * Move tabs to a panel. If the panel reopens dropped tabs in a container and
+ * the tabs are not in it yet, they are reopened there (same as a dnd drop).
+ * shortcut: pinned tabs are always moved as-is, reopen them manually if needed
+ */
+export function moveTabsToPanel(
+  ids: ID[],
+  src: T.SrcPlaceInfo,
+  dst: T.DstPlaceInfo
+): Promise<void> {
+  const panel = Sidebar.panelsById[dst.panelId ?? NOID]
+  const containerId = Utils.isTabsPanel(panel) ? getDropContainerId(panel) : undefined
+  const tabs = ids.map(id => Tabs.byId[id]).filter((tab): tab is T.Tab => !!tab)
+
+  if (needsReopenInContainer(tabs, dst.panelId, containerId)) {
+    const reopenDst: T.DstPlaceInfo = { ...dst, containerId }
+    return Utils.GLOBAL_QUEUE.add(Tabs.reopen, Tabs.getTabsInfo(ids), reopenDst)
+  }
+
+  return Utils.GLOBAL_QUEUE.add(Tabs.move, tabs, src, dst)
+}
+
+export const TESTING_MOVE = { getDropContainerId, needsReopenInContainer }
 
 export function moveTabToPanelViaOmnibox(tabId: ID, panelId: ID) {
   const tab = Tabs.byId[tabId]
@@ -868,7 +913,7 @@ export function moveTabToPanelViaOmnibox(tabId: ID, panelId: ID) {
 
   const src: T.SrcPlaceInfo = { windowId, pinned: tab.pinned }
   const dst: T.DstPlaceInfo = { windowId, panelId, index }
-  Utils.GLOBAL_QUEUE.add(Tabs.move, [tab], src, dst)
+  moveTabsToPanel([tabId], src, dst)
 
   if (tab.active) Sidebar.switchToPanel(panelId, true, true)
 }

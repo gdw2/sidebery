@@ -80,9 +80,9 @@ export const tabsMenuOptions: Record<string, () => MenuOption | MenuOption[] | u
         color: panel.color,
         colorCode: D.RGB_COLORS[panel.color],
         onClick: () => {
-          const items = Selection.getTabsInfo(true)
+          const ids = Selection.ids()
           const src = { windowId: Windows.id, panelId: probeTab.panelId, pinned: probeTab.pinned }
-          Tabs.move(items, src, { panelId: panel.id, index: panel.nextTabIndex })
+          Tabs.moveTabsToPanel(ids, src, { panelId: panel.id, index: panel.nextTabIndex })
         },
       })
     }
