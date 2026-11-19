@@ -1,0 +1,69 @@
+name: fork-build
+
+# Builds this fork for personal use.
+# - The add-on ID is overridden so the fork can be signed with your own
+#   AMO API keys (the upstream ID belongs to the upstream AMO account).
+# - Add WEB_EXT_API_KEY and WEB_EXT_API_SECRET repo secrets to get a signed
+#   .xpi (addons.mozilla.org -> Tools -> API keys). Without them only the
+#   unsigned .zip is produced, which can be installed in Developer Edition /
+#   Nightly with xpinstall.signatures.required = false.
+# - Artifacts are attached to each workflow run; install the .xpi from there.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [v5]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-build
+  cancel-in-progress: true
+
+env:
+  ADDON_ID: 'sidebery-fork@gdw2.github.io'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm test
+
+      - name: Set fork add-on ID
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs"
+            const path = "src/manifest.json"
+            const manifest = JSON.parse(fs.readFileSync(path, "utf8"))
+            manifest.browser_specific_settings.gecko.id = process.env.ADDON_ID
+            delete manifest.browser_specific_settings.gecko.update_url
+            fs.writeFileSync(path, JSON.stringify(manifest, null, 2) + "\n")
+          '
+
+      # web-ext signing requires a 4-part version. The last part comes from the
+      # run number, so every signed build gets a unique version on AMO.
+      - name: Build and sign
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.WEB_EXT_API_KEY }}
+          WEB_EXT_API_SECRET: ${{ secrets.WEB_EXT_API_SECRET }}
+        run: |
+          BASE_VERSION=$(node -p "JSON.parse(require('fs').readFileSync('package.json')).version")
+          node build/addon.js --sign "${BASE_VERSION}.${{ github.run_number }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sidebery-fork-${{ github.run_number }}
+          path: |
+            dist/*.zip
+            dist/*.xpi
+          if-no-files-found: error
