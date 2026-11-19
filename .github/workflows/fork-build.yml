@@ -3,7 +3,7 @@ name: fork-build
 # Builds this fork for personal use.
 # - The add-on ID is overridden so the fork can be signed with your own
 #   AMO API keys (the upstream ID belongs to the upstream AMO account).
-# - Add WEB_EXT_API_KEY and WEB_EXT_API_SECRET repo secrets to get a signed
+# - Add MOZILLA_JWT_ISSUER and MOZILLA_JWT_SECRET repo secrets to get a signed
 #   .xpi (addons.mozilla.org -> Tools -> API keys). Without them only the
 #   unsigned .zip is produced, which can be installed in Developer Edition /
 #   Nightly with xpinstall.signatures.required = false.
@@ -55,8 +55,8 @@ jobs:
       # run number, so every signed build gets a unique version on AMO.
       - name: Build and sign
         env:
-          WEB_EXT_API_KEY: ${{ secrets.WEB_EXT_API_KEY }}
-          WEB_EXT_API_SECRET: ${{ secrets.WEB_EXT_API_SECRET }}
+          WEB_EXT_API_KEY: ${{ secrets.MOZILLA_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.MOZILLA_JWT_SECRET }}
           SIDEBERY_UPDATE_URL: ''
         run: |
           BASE_VERSION=$(node -p "JSON.parse(require('fs').readFileSync('package.json')).version")
