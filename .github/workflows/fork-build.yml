@@ -39,12 +39,13 @@ jobs:
 
       - run: npm test
 
-      - name: Set fork add-on ID
+      - name: Set fork add-on ID and name
         run: |
           node --input-type=module -e '
             import fs from "node:fs"
             const path = "src/manifest.json"
             const manifest = JSON.parse(fs.readFileSync(path, "utf8"))
+            manifest.name = "Sidebery (fork)"
             manifest.browser_specific_settings.gecko.id = process.env.ADDON_ID
             delete manifest.browser_specific_settings.gecko.update_url
             fs.writeFileSync(path, JSON.stringify(manifest, null, 2) + "\n")
@@ -56,11 +57,12 @@ jobs:
         env:
           WEB_EXT_API_KEY: ${{ secrets.WEB_EXT_API_KEY }}
           WEB_EXT_API_SECRET: ${{ secrets.WEB_EXT_API_SECRET }}
+          SIDEBERY_UPDATE_URL: ''
         run: |
           BASE_VERSION=$(node -p "JSON.parse(require('fs').readFileSync('package.json')).version")
           node build/addon.js --sign "${BASE_VERSION}.${{ github.run_number }}"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sidebery-fork-${{ github.run_number }}
           path: |

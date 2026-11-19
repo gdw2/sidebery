@@ -4,7 +4,10 @@ import fs from 'fs/promises'
 import path from 'path'
 import { execSync } from 'child_process'
 
-const UPDATE_URL = 'https://raw.githubusercontent.com/mbnuqw/sidebery/v5/updates.json'
+const UPDATE_URL =
+  'SIDEBERY_UPDATE_URL' in process.env
+    ? process.env.SIDEBERY_UPDATE_URL
+    : 'https://raw.githubusercontent.com/mbnuqw/sidebery/v5/updates.json'
 
 async function main() {
   // Parse arguments
@@ -53,7 +56,7 @@ async function main() {
     let manifestContent = await fs.readFile('./src/manifest.json', { encoding: 'utf-8' })
     const manifest = JSON.parse(manifestContent)
     manifest.version = version
-    if (isNightly) manifest.browser_specific_settings.gecko.update_url = UPDATE_URL
+    if (isNightly && UPDATE_URL) manifest.browser_specific_settings.gecko.update_url = UPDATE_URL
     manifestContent = JSON.stringify(manifest, undefined, '  ') + '\n'
     await fs.writeFile('./src/manifest.json', manifestContent, { encoding: 'utf-8' })
   } catch {
